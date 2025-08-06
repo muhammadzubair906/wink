@@ -84,23 +84,27 @@ class PostsController
 
         validator($data, [
             'publish_date' => 'required|date',
-            'author_id' => 'required',
-            'title' => 'required',
-            'slug' => 'required|'.Rule::unique(config('wink.database_connection').'.wink_posts', 'slug')->ignore(request('id')),
+            'author_id' => 'required|exists:users,id', // adjust if needed
+            'title' => 'required|string|max:255',
+            'slug' => [
+                'required',
+                Rule::unique(config('wink.database_connection').'.wink_posts', 'slug')
+                    ->ignore(request('id')),
+            ],
         ])->validate();
 
-        $entry = $id !== 'new' ? WinkPost::findOrFail($id) : new WinkPost(['id' => request('id')]);
+        $entry = $id !== 'new'
+            ? WinkPost::findOrFail($id)
+            : new WinkPost(['id' => request('id')]);
 
         $entry->fill($data);
-
         $entry->save();
 
-        $entry->tags()->sync(
-            $this->collectTags(request('tags'))
-        );
+        $tagIds = $this->collectTags(request('tags', []));
+        $entry->tags()->sync($tagIds);
 
         return response()->json([
-            'entry' => $entry,
+            'entry' => $entry->load('tags'),
         ]);
     }
 
@@ -112,22 +116,41 @@ class PostsController
      */
     private function collectTags($incomingTags)
     {
-        $allTags = WinkTag::all();
+        // Normalize and deduplicate by name (case-insensitive)
+        $normalizedTags = collect($incomingTags)
+            ->map(function ($tag) {
+                return [
+                    'name' => trim(Str::lower($tag['name'] ?? '')),
+                    'original' => $tag
+                ];
+            })
+            ->filter(fn($tag) => !empty($tag['name']))
+            ->unique('name');
 
-        return collect($incomingTags)->map(function ($incomingTag) use ($allTags) {
-            $tag = $allTags->where('id', $incomingTag['id'])->first();
+        // Fetch existing tags by name
+        $existingTags = WinkTag::whereIn('name', $normalizedTags->pluck('name'))->get();
 
-            if (! $tag) {
-                $tag = WinkTag::create([
-                    'id' => $id = Str::uuid(),
-                    'name' => $incomingTag['name'],
-                    'slug' => Str::slug($incomingTag['name']),
+        $tagIds = [];
+
+        foreach ($normalizedTags as $tag) {
+            $existing = $existingTags->firstWhere('name', $tag['name']);
+
+            if ($existing) {
+                $tagIds[] = $existing->id;
+            } else {
+                $newTag = WinkTag::create([
+                    'id' => (string) Str::uuid(),
+                    'name' => $tag['original']['name'],
+                    'slug' => Str::slug($tag['original']['name']),
                 ]);
+                $tagIds[] = $newTag->id;
             }
+        }
 
-            return (string) $tag->id;
-        })->toArray();
+        return $tagIds;
     }
+
+
 
     /**
      * Return a single post.
