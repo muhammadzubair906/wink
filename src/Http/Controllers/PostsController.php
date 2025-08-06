@@ -84,7 +84,7 @@ class PostsController
 
         validator($data, [
             'publish_date' => 'required|date',
-            'author_id' => 'required|exists:users,id', // adjust if needed
+            'author_id' => 'required|exists:wink_authors,id', // adjust if needed
             'title' => 'required|string|max:255',
             'slug' => [
                 'required',
