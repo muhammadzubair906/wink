@@ -4,6 +4,7 @@ namespace Wink\Http\Controllers;
 
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Random\RandomException;
 use Wink\Http\Resources\PostsResource;
 use Wink\WinkPost;
 use Wink\WinkTag;
@@ -63,18 +64,19 @@ class PostsController
     /**
      * Store a single post.
      *
-     * @param  string  $id
+     * @param string $id
      * @return \Illuminate\Http\JsonResponse
+     * @throws RandomException
      */
     public function store($id)
     {
         $data = [
             'title' => request('title'),
             'excerpt' => request('excerpt', ''),
-            'slug' => request('slug'),
+            'slug' => request('slug', $this->slugify(request('title', 'post-'. random_int(1, 10000)))),
             'body' => request('body', ''),
             'published' => request('published'),
-            'markdown' => request('markdown'),
+            'markdown' => request('markdown', 0),
             'author_id' => request('author_id'),
             'featured_image' => request('featured_image'),
             'featured_image_caption' => request('featured_image_caption', ''),
@@ -149,6 +151,32 @@ class PostsController
 
         return $tagIds;
     }
+
+
+    /**
+     * Convert string to slug.
+     *
+     * @param  string  $text
+     * @return string
+     */
+    function slugify(string $text): string
+    {
+        // Lowercase
+        $text = strtolower($text);
+
+        // Replace spaces with hyphens
+        $text = preg_replace('/\s+/', '-', $text);
+
+        // Remove all non-word characters except hyphens
+        $text = preg_replace('/[^\w\-]+/', '', $text);
+
+        // Replace multiple hyphens with a single one
+        $text = preg_replace('/\-+/', '-', $text);
+
+        // Trim hyphens from the start and end
+        return trim($text, '-');
+    }
+
 
 
 
