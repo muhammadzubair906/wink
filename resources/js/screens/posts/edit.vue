@@ -494,7 +494,7 @@ export default {
                              option-text="name"
                              name="tag_ids"
                              id="tag_ids"
-                             @search-change="fetchTags"
+                             @search-change-tags="fetchTags"
                 ></multiselect>
                 <form-errors :errors="errors.tags"></form-errors>
             </div>
