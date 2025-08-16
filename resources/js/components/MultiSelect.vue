@@ -28,6 +28,7 @@
             },
 
             searchTerm(val) {
+                console.log("Search term", val);
                 var width = val.length * 12;
 
                 this.$refs.input.style.width = width > 25 ? width + 'px' : '25px';
