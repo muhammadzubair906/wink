@@ -142,6 +142,7 @@ export default {
         },
 
         fetchTags(query) {
+            console.log("Search has been changed");
             this.http.get('/wink/api/tags', {params: {search: query}})
                 .then(response => {
                     this.tags = response.data;
@@ -201,9 +202,7 @@ export default {
          * Load the resources needed for the screen.
          */
         loadResources() {
-            this.http().get('/api/tags').then(response => {
-                this.tags = response.data.data;
-            });
+            this.fetchTags();
 
             this.http().get('/api/team').then(response => {
                 this.authors = response.data.data;

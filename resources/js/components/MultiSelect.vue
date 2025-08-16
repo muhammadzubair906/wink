@@ -31,6 +31,9 @@
                 var width = val.length * 12;
 
                 this.$refs.input.style.width = width > 25 ? width + 'px' : '25px';
+
+                // Emit search term to parent so it can update options
+                this.$emit('search-change-tags', val);
             },
 
             matches(val) {
