@@ -118,39 +118,59 @@ class PostsController
      */
     private function collectTags($incomingTags)
     {
-        // Normalize and deduplicate by name (case-insensitive)
         $normalizedTags = collect($incomingTags)
             ->map(function ($tag) {
+                $name = trim($tag['name'] ?? '');
                 return [
-                    'name' => trim(Str::lower($tag['name'] ?? '')),
-                    'original' => $tag
+                    'name' => strtolower($name),
+                    'slug' => Str::slug($name),
+                    'original' => $tag,
                 ];
             })
             ->filter(fn($tag) => !empty($tag['name']))
             ->unique('name');
 
-        // Fetch existing tags by name
-        $existingTags = WinkTag::whereIn('name', $normalizedTags->pluck('name'))->get();
+        // Fetch existing tags by slug (instead of just name)
+        $existingTags = WinkTag::whereIn('slug', $normalizedTags->pluck('slug'))->get();
 
         $tagIds = [];
 
         foreach ($normalizedTags as $tag) {
-            $existing = $existingTags->firstWhere('name', $tag['name']);
+            $existing = $existingTags->firstWhere('slug', $tag['slug']);
 
             if ($existing) {
                 $tagIds[] = $existing->id;
             } else {
+                // Auto-increment slug if needed
+                $uniqueSlug = $this->getUniqueSlug($tag['slug']);
+
                 $newTag = WinkTag::create([
                     'id' => (string) Str::uuid(),
                     'name' => $tag['original']['name'],
-                    'slug' => Str::slug($tag['original']['name']),
+                    'slug' => $uniqueSlug,
                 ]);
+
                 $tagIds[] = $newTag->id;
             }
         }
 
         return $tagIds;
     }
+
+
+
+    private function getUniqueSlug(string $baseSlug): string
+    {
+        $slug = $baseSlug;
+        $counter = 1;
+
+        while (WinkTag::where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $counter++;
+        }
+
+        return $slug;
+    }
+
 
 
     /**
